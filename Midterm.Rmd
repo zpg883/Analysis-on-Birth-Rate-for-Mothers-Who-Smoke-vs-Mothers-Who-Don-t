@@ -1,0 +1,206 @@
+---
+title: "Midterm- Algorithms"
+author: "Hannah Haley"
+date: "10/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#initial setup provided by professor park
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS); library(stats); library(tidyverse); library(DescTools); library(car)
+
+setwd("C:/Users/hanna/OneDrive - University of Texas at San Antonio/Documents/Algorithms I/Midterm")
+
+bweight=read.csv("birthweight.csv", header=TRUE)
+
+bweight$Black=as.factor(bweight$Black)
+bweight$Married=as.factor(bweight$Married)
+bweight$Boy=as.factor(bweight$Boy)
+bweight$MomSmoke=as.factor(bweight$MomSmoke)
+bweight$Ed=as.factor(bweight$Ed)
+
+str(bweight)
+```
+## Exercise 1
+### a)
+Generate Boxplot for infant birth weight (Weight) and comment on the general features of the
+distribution. Generate a normal QQ-plot and perform Shapiro-wilk test to check whether normality is a
+reasonable assumption for Weight. Make a conclusion.
+```{r}
+boxplot(bweight$Weight,
+        main = "Distribution of Weight",
+        xlabs = "Weight",
+        col = "maroon",
+        border = "black",
+        horizontal = F)
+```
+
+**Observation:**
+The Boxplot shows the data following along normality with a few outliers below the minimum quartile. 
+```{r}
+qqnorm(bweight$Weight)
+qqline(bweight$Weight, col = "maroon")
+```
+
+**Observation:**
+After conducting the QQplot, the data follows the line of normality. Only a few outliers appear at a lower value, but this is not enough evidence to outright reject normality. 
+```{r}
+shapiro.test(bweight$Weight)
+```
+
+**Observation:**
+After running a Shapiro-Wilk normality test, it can be confirmed that the data follows normality since the p-value is at 0.1153 above the 0.05 significance level. Therefore, we have enough evidence to not reject the null hypothesis. 
+
+### b)
+Generate a boxplot of Weight by MomSmoke and compare infant birth weights between smoking levels. 
+```{r}
+boxplot(Weight ~ MomSmoke, bweight,
+        main = "Distribution of Weight by MomSmoke",
+        ylabs = "Weight",
+        xlabs = "Smoke?",
+        col = "slategrey",
+        border = "black",
+        horizontal = F)
+```
+
+**Observation:**
+Note: 0 represents Moms who did not smoke and 1 represent Moms who did smoke. 
+1. Moms who did not smoke had a wider range of baby weight versus Moms who did smoke. 
+2. Moms who did not smoke also had outliers of baby weights for both minimum and maximum whereas Moms who did smoke only had outliers for minimum weights. 
+3. Both boxplots seemingly follow along normality.
+4. Median appears to be less than the mean for Moms who do smoke. 
+
+### c)
+For each level in MomSmoke, perform Shapiro-wilk test for checking the Normality of Weight. Make a
+conclusion.
+```{r}
+#moms who smoke
+shapiro.test(bweight[bweight$MomSmoke== '1', "Weight"])
+```
+
+
+```{r}
+#moms who do not smoke
+shapiro.test(bweight[bweight$MomSmoke== '0', "Weight"])
+```
+
+**Observation:**
+After conducting Shapiro-Wilk Normality Tests for both MomSmoke= 0 and MomSmoke=1, we can conclude that both follow along normality since each produced p-values greater than the 0.05 significance level. 
+  1. MomSmoke=0 p-value was 0.3549
+  2. MomSmoke=1 p-value was 0.2
+
+## Exercise 2
+We want to test if there is a significant difference in birth weights between infants from smoking mom and nonsmoking mom.
+
+Perform a hypothesis test of whether infants from smoking moms have different weights than infants from nonsmoking moms. Which test do you choose? Use the answer in Exercise 1 for choosing the proper test. 
+
+Specify null and alternative hypotheses and state your conclusion.
+
+**Answer:**
+Based on our findings in exercise one, we determined that the data followed along normality. Before we decide which test to choose, we need to see if there is equality of variance. If the variances are equal, we will run the Pooled t-test. If the variances are not equal, we will run a Satterthwaite t-test.
+  H$_{0}$: MomSmoke of 0 mean eqauls MomSmoke of 1 mean
+  H$_{alpha}$: MomSmoke of 0 mean does not eqauls MomSmoke of 1 mean
+```{r}
+var.test(Weight ~MomSmoke, data=bweight, alternative ="two.sided")
+```
+
+The p-value is greater than 0.05 significance level so we can assume that the variances follow equal distribution.
+```{r}
+t.test(Weight ~ MomSmoke, data = bweight, alternative = "two.sided")
+```
+
+**Observation:**
+After running the Pooled T-test, we have strong enough evidence (p-value of 0.002 below 0.05 significance level) to accept the alternative hypothesis and reject the null hypothesis.
+
+## Exercise 3
+### a)
+Check homogeneity of variance assumption. Does it hold and okay to perform ANOVA?
+```{r}
+#library(car)
+aov.bweight <- aov(Weight ~ MomSmoke, data = bweight)
+leveneTest(aov.bweight)
+```
+
+**Observation:**
+
+Based on LeveneTest, homogeneity of variance is held because the p-value is 0.4114 which is greater than the 0.05 significance level. So it is safe to run an ANOVA.
+
+### b) 
+Make a conclusion on the effect of MomSmoke. Compare your result with the conclusion of Exercise 2.
+```{r}
+#Tukey or Schreffe test
+#library(DescTools)
+anova(aov.bweight)
+ScheffeTest(x= aov.bweight)
+```
+
+**Observation:**
+
+Based on Scheffe Test p-value of 0.0023 which is less than the 0.05 significance level, MomSmoke does have an effect on Weight. Comparing the conclusion here to the conclusion made in exercise 2, we note that the p-values are very close (~0.002 in exercise 2 and ~0.002 now) which further proofs that MomSmoke does have an effect on Weight since it does not have equal means. 
+
+## Exercise 4
+### a)
+Write down step by step how you perform backward selection and how you find the final model. Please
+do NOT include all intermediate tables and graphs in the report. Just describe each step which variable
+you delete and why.
+
+```{r, include=FALSE}
+bweight.model1 <- aov(Weight ~ Black + Married + Boy + MomSmoke + Ed, data = bweight)
+Anova(bweight.model1, type=3)
+#drop Ed because p-value was highest (insignificant)
+bweight.model1 <- aov(Weight ~ Married + Boy + MomSmoke + Black, data = bweight)
+Anova(bweight.model1, type=3)
+#drop Boy because p-value was highest
+bweight.model1 <- aov(Weight ~ Married + MomSmoke + Black, data = bweight)
+Anova(bweight.model1, type=3)
+#drop Married
+bweight.model1 <- aov(Weight ~ MomSmoke + Black, data = bweight)
+Anova(bweight.model1, type=3)
+#no more drops
+```
+
+**Backward Elimination for the Model Selection: Results**
+
+1. Drop Ed because highest value of p-value above 0.05 significance and run model again without it.
+2. Drop Boy because highest value of p-value above 0.05 significance and run model again without it.
+3. Drop Married because highest value of p-value above 0.05 significance and run model again without it.
+4. Keep MomSmoke and all other variables because it was below 0.05 significance level. 
+5. Model becomes Weight ~ Black + MomSmoke and has a heavy effect/interaction.
+
+### b)
+Specify the final model and report the amount of variation explained by the model. Also, check the
+Normality assumption through diagnostics plots.
+```{r}
+bweight.finalmodel <- aov(Weight ~ MomSmoke + Black, data = bweight)
+summary(bweight.finalmodel, type=3)
+```
+
+```{r}
+lm.bweight = lm(Weight ~ MomSmoke + Black, data = bweight)
+summary(lm.bweight)$r.squared
+```
+
+
+```{r}
+#normality
+plot(bweight.finalmodel, 2)
+```
+
+**Observation:**
+
+1. Final model includes MomSmoke and Black with low interactions/effects on the model.
+2. Based on the  R$^{2}$, we can see that the model can account for ~7.89% of the variation. 
+3. Model follows normality based on graph generated.
+
+### c) 
+State conclusions about significant differences in Weight across groups. For each significant variable, state
+specifically which level has a larger or smaller mean value of Weight.
+```{r}
+TukeyHSD(bweight.finalmodel)
+```
+
+**Observation:**
+
+1. MomSmoke has a p-value below the 0.05 significance level, specifically type group 1-0 has an effect on Weight which means mean 1< mean 0 (moms who smoke v. moms who don't).
+2. Black has a p-value below the 0.05 significance level, specifically type group 1-0 has an effect on Weight which means mean 1< mean 0 (black v. other races).
